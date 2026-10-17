@@ -1,9 +1,48 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        
-    </head>
-    <body>
-
-    </body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101715" />
+    <title>Redstone Lab — 3D circuit sandbox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="importmap">
+      { "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+    </script>
+    <script type="module" src="/main.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Redstone Lab home"><span class="brand-mark">R<span></span></span><span>redstone<span class="brand-light">lab</span><small>VOXEL CIRCUIT WORKBENCH</small></span></a>
+        <div class="top-center"><span class="live-dot"></span><span id="world-name">Untitled world</span><span class="divider">/</span><span id="world-count">0 placed</span></div>
+        <div class="top-actions"><button class="icon-button" id="undo-button" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button><button class="icon-button" id="save-button" title="Save world" aria-label="Save world">▣</button><span class="top-divider"></span><button class="text-button" id="clear-button">Clear world</button><button class="profile-button" aria-label="Profile">A</button></div>
+      </header>
+      <section class="workspace">
+        <aside class="palette panel" id="inventory-panel">
+          <div class="panel-heading"><div><span class="eyebrow">BUILD MODE</span><h1>Inventory</h1></div><button class="square-action" id="collapse-palette" title="Collapse inventory">‹</button></div>
+          <label class="search-box"><span>⌕</span><input id="block-search" type="search" placeholder="Search 33 blocks..." autocomplete="off" /><kbd>/</kbd></label>
+          <div class="category-tabs" role="tablist" aria-label="Inventory tabs"><button class="category-tab active" data-category="all">All <span>33</span></button><button class="category-tab" data-category="redstone">Redstone</button><button class="category-tab" data-category="building">Building</button></div>
+          <div class="inventory-grid" id="inventory-grid" aria-label="Block inventory"></div>
+          <div class="palette-footer"><span class="keycap">1—9</span><span>Hotbar slots</span><span class="palette-footer-dot">·</span><span class="keycap">R</span><span>Rotate</span></div>
+        </aside>
+        <section class="viewport-shell" aria-label="3D world builder">
+          <div class="viewport" id="viewport"><canvas id="world-canvas" aria-label="Interactive 3D redstone world"></canvas>
+            <div class="viewport-top"><div class="world-chip"><span class="chip-icon">⌗</span><span>WORKSPACE <b>01</b></span><span class="world-chip-separator">·</span><span id="placement-mode">PLACE</span></div><div class="view-controls"><button class="view-button active" data-view="3d">3D</button><button class="view-button" data-view="top">TOP</button><span class="view-divider"></span><button class="view-icon" id="grid-button" title="Toggle grid">▦</button><button class="view-icon" id="home-camera" title="Reset camera">⌂</button></div></div>
+            <div class="viewport-bottom-left"><div class="coordinate-chip" id="coordinate-readout">CELL 0 · 0 · 0</div><button class="rotate-camera-button" id="rotate-camera" title="Rotate camera">⟳ &nbsp; Rotate</button></div>
+            <div class="viewport-hint"><span class="hint-mouse">◉</span><span><b>Click</b> place/select&nbsp; · &nbsp;<b>Right click</b> remove&nbsp; · &nbsp;<b>Drag</b> orbit&nbsp;·&nbsp; <b>Scroll</b> zoom</span><span class="hint-separator">|</span><span><kbd>R</kbd> rotate</span></div>
+            <div class="selection-tag" id="selection-tag"><span class="selection-swatch" id="selected-swatch"></span><span id="selected-name">Redstone Dust</span><kbd>R</kbd></div>
+            <div class="toast" id="toast" role="status"></div>
+            <div class="rotation-indicator" id="rotation-indicator">N ↑</div>
+          </div>
+          <div class="simbar"><div class="sim-title"><span class="pulse-indicator" id="pulse-indicator"></span><span>SIMULATION</span><span class="sim-state" id="sim-state">PAUSED</span></div><div class="sim-readout"><span class="readout-item"><i class="readout-icon power-icon"></i>MAX SIGNAL <b id="power-value">0</b></span><span class="readout-separator"></span><span class="readout-item"><i class="readout-icon tick-icon"></i>GAME TICK <b id="tick-value">0000</b></span></div><div class="sim-actions"><button class="step-button" id="step-button" title="Advance one redstone tick">▸│ <span>Step</span></button><button class="play-button" id="play-button"><span class="play-glyph">▶</span><span id="play-label">Start simulation</span></button></div></div>
+        </section>
+        <aside class="inspector panel"><div class="inspector-heading"><div><span class="eyebrow">PROPERTIES</span><h2>Inspector</h2></div><button class="square-action" id="collapse-inspector" title="Collapse inspector">›</button></div><div class="inspector-content" id="inspector-content"></div><div class="inspector-bottom"><div class="status-line"><span class="status-indicator"></span><span>WORLD STATUS</span><b id="world-status">Ready</b></div><div class="build-tip"><span class="tip-star">✳</span><p><b>Click to build</b>, then drag to orbit. Wheel zooms; rotate faces toward N/E/S/W.</p></div></div></aside>
+      </section>
+      <footer class="footerbar"><div class="footer-left"><span class="footer-brand-mark">R</span><span>REDSTONE LAB</span><span class="footer-dot">·</span><span>VOXEL GRID <b>32 × 16 × 32</b></span></div><div class="hotbar" id="hotbar" aria-label="Selected inventory hotbar"></div><div class="footer-right"><span><i class="keyboard-icon">⌨</i> <kbd>SPACE</kbd> simulate</span><span class="footer-separator">·</span><button id="inventory-toggle" class="inventory-shortcut">▦ Inventory</button></div></footer>
+    </main>
+  </body>
 </html>
