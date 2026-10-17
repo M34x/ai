@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { BLOCKS, BLOCK_BY_ID, INVENTORY_START, WORLD } from '../block-catalog.js';
 import { RedstoneWorld } from '../redstone-sim.js';
 import { getDustConnections } from '../dust-connections.js';
-import { adjacentCell, canPlaceInCell, stackedPlacementCell } from '../grid-placement.js';
+import { adjacentCell, canActivateBlock, canPlaceInCell, canPlaceOnSupport, canRemoveBlock, stackedPlacementCell } from '../grid-placement.js';
 import { createBlockGeometry } from '../block-models.js';
 import * as THREE from 'three';
 
@@ -22,11 +22,13 @@ test('placement uses integer cell coordinates, complete grid bounds, and counts 
   const world = new RedstoneWorld();
   assert.equal(world.place(p(0)), true);
   assert.equal(world.place(p(0)), false);
+  for (let y = 0; y < 15; y++) assert.equal(world.place(p(15, y, -16), 'block'), true);
   assert.equal(world.place(p(15, 15, -16), 'pink'), true);
   assert.equal(world.place(p(16)), false);
   assert.equal(world.place(p(-17)), false);
   assert.equal(world.place(p(0.5)), false);
   assert.equal(world.place(p(0, 16)), false);
+  assert.equal(world.place(p(0, 1), 'torch'), false, 'unsupported elevated placement is rejected');
   assert.equal(world.inventory.get('dust'), INVENTORY_START - 1);
   world.remove(p(0));
   assert.equal(world.inventory.get('dust'), INVENTORY_START);
@@ -34,7 +36,10 @@ test('placement uses integer cell coordinates, complete grid bounds, and counts 
 
 test('unpowered wool is non-conductive and all 33 block types can be placed', () => {
   const world = new RedstoneWorld();
-  for (const [index, block] of BLOCKS.entries()) assert.equal(world.place(p(-16 + index % 32, Math.floor(index / 32), 5), block.id), true, block.name);
+  for (const [index, block] of BLOCKS.entries()) {
+    const position = index < 32 ? p(-16 + index, 0, 5) : p(-16, 0, 6);
+    assert.equal(world.place(position, block.id), true, block.name);
+  }
   assert.equal(world.blocks.size, 33);
   assert.deepEqual(WORLD, { minX: -16, maxX: 15, minZ: -16, maxZ: 15, maxY: 15, width: 32 });
 });
@@ -67,6 +72,40 @@ test('dust visual and signal connections follow cardinal adjacency and block occ
   world.remove(p(0, 0, 1));
   world.place(p(0, 0, 1), 'hopper', { ignoreInventory: true });
   assert.ok(!getDustConnections(world.blocks, p(0)).some(({ direction, dy }) => direction === 'South' && dy === 1));
+});
+
+test('blocks need a solid support below and cannot stack on circuits or unsupported components', () => {
+  const world = new RedstoneWorld();
+  assert.equal(world.place(p(0, 1), 'torch'), false, 'torch cannot float');
+  assert.equal(world.place(p(0), 'torch'), true);
+  assert.equal(world.place(p(0, 1), 'torch'), false, 'torch cannot sit on another torch');
+  assert.equal(world.place(p(1), 'dust'), true);
+  assert.equal(world.place(p(1, 1), 'torch'), false, 'wire cannot support a torch');
+  assert.equal(world.place(p(2), 'lever'), true);
+  assert.equal(world.place(p(2, 1), 'dust'), false, 'lever cannot support wire');
+  assert.equal(world.place(p(3), 'block'), true);
+  assert.equal(world.place(p(3, 1), 'torch'), true, 'solid block supports a torch');
+  assert.equal(world.place(p(3, 2), 'white'), false, 'torch is not sturdy enough to support another block');
+  assert.equal(world.place(p(5), 'block'), true);
+  assert.equal(world.place(p(5, 1), 'white'), true);
+  assert.equal(world.place(p(5, 2), 'pink'), true, 'solid supports may form a stack');
+  assert.equal(world.place(p(4), 'hopper'), true);
+  assert.equal(world.place(p(4, 1), 'lever'), false, 'non-full components are not sturdy supports');
+  assert.equal(canPlaceOnSupport('torch', 'block'), true);
+  assert.equal(canPlaceOnSupport('torch', 'torch'), false);
+  assert.equal(canPlaceOnSupport('white', 'dust'), false);
+});
+
+test('block click activation is gated on simulation running', () => {
+  assert.equal(canActivateBlock('lever', { simulationRunning: false }), false);
+  assert.equal(canActivateBlock('lever', { simulationRunning: true }), true);
+  assert.equal(canActivateBlock('target', { simulationRunning: false }), false);
+  assert.equal(canActivateBlock('target', { simulationRunning: true }), true);
+  assert.equal(canActivateBlock('note', { simulationRunning: false }), false);
+  assert.equal(canActivateBlock('note', { simulationRunning: true }), true);
+  assert.equal(canActivateBlock('white', { simulationRunning: true }), false);
+  assert.equal(canRemoveBlock({ simulationRunning: false }), true);
+  assert.equal(canRemoveBlock({ simulationRunning: true }), false);
 });
 
 test('face placement resolves exact neighboring voxel including negative coordinates', () => {

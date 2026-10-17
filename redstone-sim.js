@@ -1,5 +1,6 @@
 import { BLOCK_BY_ID, DIRECTIONS, INVENTORY_START, WORLD } from './block-catalog.js';
 import { getDustConnections } from './dust-connections.js';
+import { canPlaceOnSupport } from './grid-placement.js';
 
 const keyOf = ({ x, y, z }) => `${x},${y},${z}`;
 const positionOf = (key) => { const [x, y, z] = key.split(',').map(Number); return { x, y, z }; };
@@ -31,6 +32,10 @@ export class RedstoneWorld {
     if (!position || ![position.x, position.y, position.z].every(Number.isInteger) || !inWorld(position)) return false;
     const key = keyOf(position);
     if (this.blocks.has(key)) return false;
+    if (position.y > 0) {
+      const support = this.blocks.get(keyOf({ x: position.x, y: position.y - 1, z: position.z }));
+      if (!support || !canPlaceOnSupport(id, support.id)) return false;
+    }
     const stock = this.inventory.get(id) ?? INVENTORY_START;
     if (!options.ignoreInventory && stock < 1) return false;
     if (!options.ignoreInventory) this.inventory.set(id, stock - 1);
